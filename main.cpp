@@ -76,7 +76,8 @@ bool displayUnalignedEdgesGraphTwo = true;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window, int key, int scancode, int action, int mode);
-void createBoostGraph(UndirectedGraph &g, std::map<std::string, int> &name_to_num);
+void createBoostGraph_gw(UndirectedGraph &g, std::map<std::string, int> &name_to_num);
+void createBoostGraph_el(UndirectedGraph &g, std::map<std::string, int> &name_to_num);
 void readAlignedNodes(
 	std::map<std::string, std::string> &mapping, 
 	std::map<int, bool> &alignedNodes, 
@@ -86,8 +87,11 @@ void fruchtermanReingold(UndirectedGraph &g,
 	std::vector<float> &unalignedVerticesList, 
 	std::vector<float> &alignedVerticesList, 
 	std::map<int, bool> &alignedNodes);
-void createEdgeList(std::vector<std::vector<int>> &graphTwoEdges, 
+void createEdgeList_gw(std::vector<std::vector<int>> &graphTwoEdges, 
 	std::map<std::string, int> &name_to_num_two, 
+	std::map<int, std::string> &num_to_name);
+void createEdgeList_el(std::vector<std::vector<int>> &graphTwoEdges,
+	std::map<std::string, int> &name_to_num_two,
 	std::map<int, std::string> &num_to_name);
 void readAlignedEdges(
 	UndirectedGraph &g, 
@@ -211,7 +215,9 @@ int main(int argc, char *argv[]){
 		printHelp();
 		exit(1);
 	}
-	checkGraphSizeOrder();
+	if(graphOne.substr(graphOne.length() - 3).compare(".gw") == 0 && graphTwo.substr(graphTwo.length() - 3).compare(".gw") == 0)
+		checkGraphSizeOrder();
+
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -239,8 +245,14 @@ int main(int argc, char *argv[]){
 	//create graph
 	UndirectedGraph g;
 	std::map<std::string, int> name_to_num;
-	createBoostGraph(g, name_to_num);
-
+	if(graphOne.substr(graphOne.length() - 3).compare(".gw") == 0)
+		createBoostGraph_gw(g, name_to_num);
+	else if(graphOne.substr(graphOne.length() - 3).compare(".el") == 0)
+		createBoostGraph_el(g, name_to_num);
+	else{
+		std::cout << "Invalid graph format\n";
+		exit(1);
+	}
 	std::map<std::string, std::string> mapping;
   	std::map<int, bool> alignedNodes;
     readAlignedNodes(mapping, alignedNodes, name_to_num);
@@ -254,7 +266,14 @@ int main(int argc, char *argv[]){
     std::vector<std::vector<int>> graphTwoEdges;
     std::map<std::string, int> name_to_num_two;
     std::map<int, std::string> num_to_name;
-    createEdgeList(graphTwoEdges, name_to_num_two, num_to_name);
+    if(graphTwo.substr(graphTwo.length() - 3).compare(".gw") == 0)
+		createEdgeList_gw(graphTwoEdges, name_to_num_two, num_to_name);
+	else if(graphTwo.substr(graphTwo.length() - 3).compare(".el") == 0)
+		createEdgeList_el(graphTwoEdges, name_to_num_two, num_to_name);
+	else{
+		std::cout << "Invalid graph format\n";
+		exit(1);
+	}
 
     std::vector<float> unalignedVertexColor;
     std::vector<float> alignedVertexColor;
@@ -384,7 +403,7 @@ unsigned int createVAO(std::vector<float> &list, int numElementsPerObject, std::
 	return VAO;
 }
 
-void createBoostGraph(UndirectedGraph &g, std::map<std::string, int> &name_to_num){
+void createBoostGraph_gw(UndirectedGraph &g, std::map<std::string, int> &name_to_num){
 	std::ifstream fstream(graphOne.c_str());
 	std::string line;
 	std::getline(fstream, line);
@@ -410,6 +429,33 @@ void createBoostGraph(UndirectedGraph &g, std::map<std::string, int> &name_to_nu
 		boost::add_edge(a-1, b-1, g);
 	}
 	fstream.close();
+}
+
+void createBoostGraph_el(UndirectedGraph &g, std::map<std::string, int> &name_to_num){
+	std::ifstream fstream(graphOne.c_str());
+	std::string line;
+	int counter{1};
+	std::vector<int> edge_holder;
+	while(std::getline(fstream, line)){
+		std::stringstream ss;
+		ss << line;
+		std::string a, b;
+		ss >> a >> b;
+		if(name_to_num.count(a) != 1){
+			name_to_num[a] = counter++;
+			boost::add_vertex(g);
+		}
+		if(name_to_num.count(b) != 1){
+			name_to_num[b] = counter++;
+			boost::add_vertex(g);
+		}
+		edge_holder.push_back(name_to_num[a]);
+		edge_holder.push_back(name_to_num[b]);
+	}
+	fstream.close();
+	for(int i{}; i < edge_holder.size(); i += 2){
+		boost::add_edge(edge_holder[i]-1, edge_holder[i+1]-1, g);
+	}
 }
 
 void readAlignedNodes(std::map<std::string, std::string> &mapping, std::map<int, bool> &alignedNodes, std::map<std::string, int> &name_to_num){
@@ -449,7 +495,7 @@ void fruchtermanReingold(UndirectedGraph &g,
     }
 }
 
-void createEdgeList(std::vector<std::vector<int>> &graphTwoEdges, 
+void createEdgeList_gw(std::vector<std::vector<int>> &graphTwoEdges, 
 	std::map<std::string, int> &name_to_num_two, 
 	std::map<int, std::string> &num_to_name){
 	std::ifstream fstream(graphTwo.c_str());
@@ -479,6 +525,37 @@ void createEdgeList(std::vector<std::vector<int>> &graphTwoEdges,
    		graphTwoEdges[b].push_back(a);
    	}
     fstream.close();
+}
+
+void createEdgeList_el(std::vector<std::vector<int>> &graphTwoEdges,
+	std::map<std::string, int> &name_to_num_two,
+	std::map<int, std::string> &num_to_name){
+	std::vector<int> edge_holder;
+	std::ifstream fstream(graphTwo.c_str());
+	std::string line;
+	int counter{1};
+	while(std::getline(fstream, line)){
+		std::stringstream ss;
+		ss << line;
+		std::string a, b;
+		ss >> a >> b;
+		if(name_to_num_two.count(a) != 1){
+			name_to_num_two[a] = counter++;
+			num_to_name[counter-1] = a;
+		}
+		if(name_to_num_two.count(b) != 1){
+			name_to_num_two[b] = counter++;
+			num_to_name[counter-1] = b;
+		}
+		edge_holder.push_back(name_to_num_two[a]);
+		edge_holder.push_back(name_to_num_two[b]);
+	}
+	fstream.close();
+	graphTwoEdges.resize(counter, std::vector<int>());
+	for(int i{}; i < edge_holder.size(); i += 2){
+		graphTwoEdges[edge_holder[i]].push_back(edge_holder[i+1]);
+		graphTwoEdges[edge_holder[i+1]].push_back(edge_holder[i]);
+	}
 }
 
 void readAlignedEdges(UndirectedGraph &g, 
