@@ -61,7 +61,6 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void createBoostGraph_gw(UndirectedGraph &g, std::map<std::string, int> &name_to_num);
 void createBoostGraph_el(UndirectedGraph &g, std::map<std::string, int> &name_to_num);
 void readAlignedNodes(
-	std::map<std::string, std::string> &mapping, 
 	std::map<int, bool> &alignedNodes, 
 	std::map<std::string, int> &name_to_num,
 	std::map<std::string, int> &name_to_num_two);
@@ -95,8 +94,7 @@ void getUnaligendEdgesInEdgeGraph(
 	std::vector<float> &unalignedEdges, 
 	std::vector<float> &unalignedEdgeColor, 
 	std::map<std::string, int> &name_to_num,
-	std::map<int, std::string> &num_to_name,
-	std::map<std::string, std::string> &mapping);
+	std::map<int, std::string> &num_to_name);
 void setVertexColors(
 	std::vector<float> &unalignedVertices, 
 	std::vector<float> &alignedVertices, 
@@ -107,11 +105,12 @@ void checkGraphSizeOrder();
 unsigned int createVAO(std::vector<float> &list, int numElementsPerObject, std::vector<float> &color, int numElementsPerColor);
 void verifyCommandLineInput(int argc, char *argv[]);
 void registerMouseClick(bool leftClick);
-std::vector<unsigned int> createGUIVAO();
-void setGUIData(std::vector<unsigned int> input);
+std::vector<unsigned int> createGUIVAO(float topOffset, float bottomOffset, float leftOffset, float rightOffset);
+void setGUIData(std::vector<unsigned int> input, float topOffset, float bottomOffset, float leftOffset, float rightOffset);
 std::vector<unsigned int> createGuiBox(float xOffsetLeft, float xOffsetRight, float yOffsetTop, float yOffsetBottom);
 void setGUIBoxData(std::vector<unsigned int> input, float xOffsetLeft, float xOffsetRight, float yOffsetTop, float yOffsetBottom);
 int findSelectedVertex();
 void deleteRemovedEdges(int vertex, std::set<std::pair<int, int>> &edges);
 std::vector<unsigned int> createSelectedVertexVAO();
 void setSelectedVertexVAOData(std::vector<unsigned int> &arr, std::set<std::pair<int, int>> &edges, glm::vec2 color);
+void addSelectedVertex(int vertex);
