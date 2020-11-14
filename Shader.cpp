@@ -1,53 +1,61 @@
 #include "Shader.hpp"
 void Shader::compile(const char* vertexSource, const char* fragmentSource, const char* geometrySource)
 {
-
-    std::ifstream vertexShaderFile(vertexSource);
-    std::ifstream fragmentShaderFile(fragmentSource);
-    std::ifstream geometryShaderFile(geometrySource);
-    std::stringstream vShaderStream, fShaderStream, gShaderStream;
-    vShaderStream << vertexShaderFile.rdbuf();
-    fShaderStream << fragmentShaderFile.rdbuf();
-    gShaderStream << geometryShaderFile.rdbuf();
-    vertexShaderFile.close();
-    fragmentShaderFile.close();
-    geometryShaderFile.close();
-    std::string vertexCode, fragmentCode, geometryCode;
-    vertexCode = vShaderStream.str();
-    fragmentCode = fShaderStream.str();
-    geometryCode = gShaderStream.str();
-    const char *vShaderCode = vertexCode.c_str();
-    const char *fShaderCode = fragmentCode.c_str();
-    const char *gShaderCode = geometryCode.c_str();
-
-    unsigned int sVertex, sFragment, gShader;
-    // vertex Shader
-    sVertex = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(sVertex, 1, &vShaderCode, NULL);
-    glCompileShader(sVertex);
-    checkCompileErrors(sVertex, "VERTEX");
-    // fragment Shader
-    sFragment = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(sFragment, 1, &fShaderCode, NULL);
-    glCompileShader(sFragment);
-    checkCompileErrors(sFragment, "FRAGMENT");
-    //geometry Shader
-    gShader = glCreateShader(GL_GEOMETRY_SHADER);
-    glShaderSource(gShader, 1, &gShaderCode, NULL);
-    glCompileShader(gShader);
-    checkCompileErrors(gShader, "GEOMETRY");
+    try{
+        std::ifstream vertexShaderFile(vertexSource);
+        std::ifstream fragmentShaderFile(fragmentSource);
+        std::stringstream vShaderStream, fShaderStream, gShaderStream;
+        vShaderStream << vertexShaderFile.rdbuf();
+        fShaderStream << fragmentShaderFile.rdbuf();
+        vertexShaderFile.close();
+        fragmentShaderFile.close();
+        std::string vertexCode, fragmentCode, geometryCode;
+        vertexCode = vShaderStream.str();
+        fragmentCode = fShaderStream.str();
+        const char *vShaderCode = vertexCode.c_str();
+        const char *fShaderCode = fragmentCode.c_str();
     
-    // shader program
-    this->ID = glCreateProgram();
-    glAttachShader(this->ID, sVertex);
-    glAttachShader(this->ID, sFragment);
-    glAttachShader(this->ID, gShader);
-    glLinkProgram(this->ID);
-    checkCompileErrors(this->ID, "PROGRAM");
-    // delete the shaders as they're linked into our program now and no longer necessery
-    glDeleteShader(sVertex);
-    glDeleteShader(sFragment);
-    glDeleteShader(gShader);
+        unsigned int sVertex, sFragment, gShader;
+        // vertex Shader
+        sVertex = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(sVertex, 1, &vShaderCode, NULL);
+        glCompileShader(sVertex);
+        checkCompileErrors(sVertex, "VERTEX");
+        // fragment Shader
+        sFragment = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(sFragment, 1, &fShaderCode, NULL);
+        glCompileShader(sFragment);
+        checkCompileErrors(sFragment, "FRAGMENT");
+        if(geometrySource){
+            //geometry Shader
+            std::ifstream geometryShaderFile(geometrySource);
+            gShaderStream << geometryShaderFile.rdbuf();
+            geometryShaderFile.close();
+            geometryCode = gShaderStream.str();
+            const char *gShaderCode = geometryCode.c_str();
+            gShader = glCreateShader(GL_GEOMETRY_SHADER);
+            glShaderSource(gShader, 1, &gShaderCode, NULL);
+            glCompileShader(gShader);
+            checkCompileErrors(gShader, "GEOMETRY");
+        }
+
+        // shader program
+        this->ID = glCreateProgram();
+        glAttachShader(this->ID, sVertex);
+        glAttachShader(this->ID, sFragment);
+        if(geometrySource)
+            glAttachShader(this->ID, gShader);
+        glLinkProgram(this->ID);
+        checkCompileErrors(this->ID, "PROGRAM");
+        // delete the shaders as they're linked into our program now and no longer necessery
+        glDeleteShader(sVertex);
+        glDeleteShader(sFragment);
+        if(geometrySource)
+            glDeleteShader(gShader);
+    }catch(...){
+        std::cout << "Error reading one or more shader files\n";
+        exit(1);
+    }
 }
 
 void Shader::use(){
