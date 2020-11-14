@@ -844,6 +844,27 @@ void registerMouseClick(bool leftClick){
 				setSelectedVertexVAOData(selectedVertexEdgeUnalignedTwoVAO, selectedVertexEdgeUnalignedTwo, glm::vec2(EdgeTwoColorUnaligned.first, EdgeTwoColorUnaligned.second));
 			}
 		}
+	}else if(didSelectVertices){
+		int vertex = findSelectedVertex();
+		if(selectedVertices.count(vertex) != 1){
+			selectedVertices.clear();
+			selectedVertexEdgesAligned.clear();
+			selectedVertexEdgeUnalignedOne.clear();
+			selectedVertexEdgeUnalignedTwo.clear();
+			addSelectedVertex(vertex);
+		}else{
+			std::set<int> temp{vertex};
+			selectedVertices.erase(vertex);
+			selectedVertices.swap(temp);
+			for(auto it = temp.begin(); it != temp.end(); ++it){
+				deleteRemovedEdges(*it, selectedVertexEdgesAligned);
+				deleteRemovedEdges(*it, selectedVertexEdgeUnalignedOne);
+				deleteRemovedEdges(*it, selectedVertexEdgeUnalignedTwo);
+			}
+		}
+		setSelectedVertexVAOData(selectedVertexEdgesAlignedVAO, selectedVertexEdgesAligned, glm::vec2(EdgeColorAligned.first, EdgeColorAligned.second));
+		setSelectedVertexVAOData(selectedVertexEdgeUnalignedOneVAO, selectedVertexEdgeUnalignedOne, glm::vec2(EdgeOneColorUnaligned.first, EdgeOneColorUnaligned.second));
+		setSelectedVertexVAOData(selectedVertexEdgeUnalignedTwoVAO, selectedVertexEdgeUnalignedTwo, glm::vec2(EdgeTwoColorUnaligned.first, EdgeTwoColorUnaligned.second));
 	}
 }
 
