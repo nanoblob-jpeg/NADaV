@@ -91,13 +91,13 @@ int main(int argc, char *argv[]){
 	}
 	//creating the shader program
 	Shader nodeShaderProgram;
-	nodeShaderProgram.compile("node.vert", "node.frag", "node.geo");
+	nodeShaderProgram.compile("shaders/node.vert", "shaders/node.frag", "shaders/node.geo");
 	Shader edgeShaderProgram;
-	edgeShaderProgram.compile("edge.vert", "edge.frag", "edge.geo");
+	edgeShaderProgram.compile("shaders/edge.vert", "shaders/edge.frag", "shaders/edge.geo");
 	Shader staticTextureProgram;
-	staticTextureProgram.compile("staticTexture.vert", "staticTexture.frag", nullptr);
+	staticTextureProgram.compile("shaders/staticTexture.vert", "shaders/staticTexture.frag", nullptr);
 	Shader staticProgram;
-	staticProgram.compile("static.vert", "static.frag", nullptr);
+	staticProgram.compile("shaders/static.vert", "shaders/static.frag", nullptr);
 
 	//create graph
 	std::map<std::string, int> name_to_num;
@@ -169,7 +169,7 @@ int main(int argc, char *argv[]){
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	int guiw, guih, nrChannels;
-	unsigned char *data = stbi_load("gui.png", &guiw, &guih, &nrChannels, 0);
+	unsigned char *data = stbi_load("textures/gui.png", &guiw, &guih, &nrChannels, 0);
 	if (data)
 	{
 	    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, guiw, guih, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
@@ -189,7 +189,7 @@ int main(int argc, char *argv[]){
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	data = stbi_load("clearSelectionButton.png", &guiw, &guih, &nrChannels, 0);
+	data = stbi_load("textures/clearSelectionButton.png", &guiw, &guih, &nrChannels, 0);
 	if (data)
 	{
 	    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, guiw, guih, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
