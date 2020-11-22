@@ -2,6 +2,9 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
 #include <iostream>
 #include <vector>
 #include <map>
@@ -57,6 +60,7 @@ private:
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow* window, int key, int scancode, int action, int mode);
+void charCallback(GLFWwindow *window, unsigned int codepoint);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void createBoostGraph_gw(UndirectedGraph &g, std::map<std::string, int> &name_to_num);
 void createBoostGraph_el(UndirectedGraph &g, std::map<std::string, int> &name_to_num);
@@ -107,10 +111,14 @@ void verifyCommandLineInput(int argc, char *argv[]);
 void registerMouseClick(bool leftClick);
 std::vector<unsigned int> createGUIVAO(float topOffset, float bottomOffset, float leftOffset, float rightOffset);
 void setGUIData(std::vector<unsigned int> input, float topOffset, float bottomOffset, float leftOffset, float rightOffset);
-std::vector<unsigned int> createGuiBox(float xOffsetLeft, float xOffsetRight, float yOffsetTop, float yOffsetBottom);
-void setGUIBoxData(std::vector<unsigned int> input, float xOffsetLeft, float xOffsetRight, float yOffsetTop, float yOffsetBottom);
+std::vector<unsigned int> createGuiBox(float xOffsetLeft, float xOffsetRight, float yOffsetTop, float yOffsetBottom, glm::vec3 color);
+void setGUIBoxData(std::vector<unsigned int> input, float xOffsetLeft, float xOffsetRight, float yOffsetTop, float yOffsetBottom, glm::vec3 color);
 int findSelectedVertex();
 void deleteRemovedEdges(int vertex, std::set<std::pair<int, int>> &edges);
 std::vector<unsigned int> createSelectedVertexVAO();
 void setSelectedVertexVAOData(std::vector<unsigned int> &arr, std::set<std::pair<int, int>> &edges, glm::vec2 color);
 void addSelectedVertex(int vertex);
+void loadCharacters();
+void RenderText(Shader &shader, std::string text, float x, float y, float scale, glm::vec3 color, unsigned int VAO, unsigned int VBO);
+std::vector<unsigned int> createTextVAO();
+void isolateTheseEdges();

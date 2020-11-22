@@ -1,7 +1,22 @@
 /*
 TODO: 
 - later, move to java and integrate with cytoscope
+- cytoscape integration
 
+- include way to induce subgraphs on some nodes
+	- would need a text box gui
+	- like screw me
+
+- turn right click to toggle
+
+- use windows and apple standards for selecting
+	- clock only select
+	- control + click = add
+	- shift + click = select everything between
+
+-names
+	- vizalign
+	- VisAl
 Details:
 Both graphs created are 0 indexed
 vertexes when selecting are in terms of the boost graph numbering
@@ -17,6 +32,19 @@ int WIDTH = 800;
 int HEIGHT = 600;
 glm::vec2 mouse_position(0.0, 0.0);
 glm::vec4 topologyBounds(-1600, -1200, 1600, 1200);
+
+struct Character{
+	unsigned int TextureID;
+	glm::ivec2 Size;
+	glm::ivec2 Bearing;
+	unsigned int Advance;
+};
+std::map<char, Character> Characters;
+std::string toPrint = "";
+std::vector<unsigned int> box4;
+std::vector<unsigned int> applyButtonData;
+glm::vec2 textPositon;
+bool enteringText = false;
 
 bool displayAlignedNodes = true;
 bool displayUnalignedNodes = true;
@@ -58,6 +86,9 @@ std::string graphTwo;
 std::string align = "sana.align";
 std::string edgeAlign = "sana.ccs-el";
 
+std::map<std::string, int> name_to_num;
+std::map<std::string, int> name_to_num_two;
+
 std::pair<float, float> vertexColorAligned{0.8f, 0.8f};
 std::pair<float, float> vertexColorUnaligned{0.5f, 0.0f};
 std::pair<float, float> EdgeOneColorUnaligned{0.5f, 0.0f};
@@ -85,10 +116,13 @@ int main(int argc, char *argv[]){
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 	glfwSetKeyCallback(window, processInput);
+	glfwSetCharCallback(window, charCallback);
 	if(!gladLoadGLLoader((GLADloadproc)(glfwGetProcAddress))){
 		std::cout << "Failed to initialize GLAD" << std::endl;
 		return -1;
 	}
+	glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	//creating the shader program
 	Shader nodeShaderProgram;
 	nodeShaderProgram.compile("shaders/node.vert", "shaders/node.frag", "shaders/node.geo");
@@ -98,9 +132,10 @@ int main(int argc, char *argv[]){
 	staticTextureProgram.compile("shaders/staticTexture.vert", "shaders/staticTexture.frag", nullptr);
 	Shader staticProgram;
 	staticProgram.compile("shaders/static.vert", "shaders/static.frag", nullptr);
+	Shader textProgram;
+	textProgram.compile("shaders/text.vert", "shaders/text.frag", nullptr);
 
 	//create graph
-	std::map<std::string, int> name_to_num;
 	if(graphOne.length() <= 3){
 		std::cout << "Invalid graph file\n";
 		exit(1);
@@ -114,7 +149,6 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 
-	std::map<std::string, int> name_to_num_two;
     std::map<int, std::string> num_to_name;
     if(graphTwo.length() <= 3){
     	std::cout << "Invalid graph file\n";
@@ -197,23 +231,52 @@ int main(int argc, char *argv[]){
 	}
 	else
 	{
-	    std::cout << "Could not find gui.png texture" << std::endl;
+	    std::cout << "Could not find clearSelectionButton.png texture" << std::endl;
+	    exit(1);
+	}
+	stbi_image_free(data);
+
+	unsigned int texture3;
+	glGenTextures(1, &texture3);
+	glBindTexture(GL_TEXTURE_2D, texture3);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	data = stbi_load("textures/apply.png", &guiw, &guih, &nrChannels, 0);
+	if (data)
+	{
+	    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, guiw, guih, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	    glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else
+	{
+	    std::cout << "Could not find apply.png texture" << std::endl;
 	    exit(1);
 	}
 	stbi_image_free(data);
 
 	guiData = createGUIVAO(0.0f, 200.0f, 200.0f, 0.0f);
 	clearSelectionGuiData = createGUIVAO(210.0f, 300.0f, 200.0f, 0.0f);
-	box1 = createGuiBox(175, 150, 25, 50);
-	box2 = createGuiBox(175, 150, 88, 113);
-	box3 = createGuiBox(175, 150, 150, 175);
+	applyButtonData = createGUIVAO(1100.0f, 1200.0f, 900.0f, 800.0f);
+	box1 = createGuiBox(175, 150, 25, 50, glm::vec3(0.2f, 0.6f, 1.0f));
+	box2 = createGuiBox(175, 150, 88, 113, glm::vec3(0.2f, 0.6f, 1.0f));
+	box3 = createGuiBox(175, 150, 150, 175, glm::vec3(0.2f, 0.6f, 1.0f));
+	box4 = createGuiBox(1600, 800, 1100, 1200, glm::vec3(0.83f, 0.83f, 0.83f));
 
 	selectedVertexEdgesAlignedVAO = createSelectedVertexVAO();
 	selectedVertexEdgeUnalignedOneVAO = createSelectedVertexVAO();
 	selectedVertexEdgeUnalignedTwoVAO = createSelectedVertexVAO();
 
-    //projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -10.0f, 10.0f);
     projection = glm::perspective(glm::radians(45.0f), (float)(800.0/600.0), 0.1f, 100.0f);
+
+    edgeShaderProgram.use();
+    edgeShaderProgram.setMat4("proj", projection);
+    nodeShaderProgram.use();
+    nodeShaderProgram.setMat4("proj", projection);
+    //printing text setup
+    loadCharacters();
+    std::vector<unsigned int> textVAO = createTextVAO();
 
 	//render loop
 	while(!glfwWindowShouldClose(window)){
@@ -229,7 +292,6 @@ int main(int argc, char *argv[]){
     	//render here
     	
     	nodeShaderProgram.use();
-    	nodeShaderProgram.setMat4("proj", projection);
     	nodeShaderProgram.setMat4("view", view);
     	if(displayUnalignedNodes){
 			glBindVertexArray(unalignedVerticesVAO);
@@ -241,7 +303,6 @@ int main(int argc, char *argv[]){
 		}
 
     	edgeShaderProgram.use();
-    	edgeShaderProgram.setMat4("proj", projection);
     	edgeShaderProgram.setMat4("view", view);
     	if(!didSelectVertices){
     		if(displayAlignedEdges){
@@ -295,6 +356,16 @@ int main(int argc, char *argv[]){
     		glBindVertexArray(box2[0]);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
     	}
+    	glBindVertexArray(box4[0]);
+    	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    	staticTextureProgram.use();
+    	glBindTexture(GL_TEXTURE_2D, texture3);
+    	glBindVertexArray(applyButtonData[0]);
+    	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    	textProgram.use();
+    	RenderText(textProgram, toPrint,-WIDTH + 10, -HEIGHT+ 30, 1.0f, glm::vec3(0.0, 0.0, 0.0), textVAO[0], textVAO[1]);
 
     	glfwSwapBuffers(window);
 	}
@@ -307,9 +378,10 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height){
 	glfwGetWindowSize(window, &WIDTH, &HEIGHT);
 	guiData = createGUIVAO(0.0f, 200.0f, 200.0f, 0.0f);
 	clearSelectionGuiData = createGUIVAO(210.0f, 300.0f, 200.0f, 0.0f);
-	setGUIBoxData(box1,175, 150, 25, 50);
-	setGUIBoxData(box2,175, 150, 88, 113);
-	setGUIBoxData(box3,175, 150, 150, 175);
+	setGUIBoxData(box1,175, 150, 25, 50, glm::vec3(0.2f, 0.6f, 1.0f));
+	setGUIBoxData(box2,175, 150, 88, 113, glm::vec3(0.2f, 0.6f, 1.0f));
+	setGUIBoxData(box3,175, 150, 150, 175, glm::vec3(0.2f, 0.6f, 1.0f));
+	setGUIBoxData(box4,2*WIDTH, WIDTH, 2*HEIGHT - 100, 2*HEIGHT, glm::vec3(0.83f, 0.83f, 0.83f));
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos){
@@ -321,21 +393,34 @@ void processInput(GLFWwindow* window, int key, int scancode, int action, int mod
 	if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
 		glfwSetWindowShouldClose(window, true);
 	}
-	if (glfwGetKey(window, GLFW_KEY_T) && action == GLFW_PRESS)
-		std::cout << glGetError() << std::endl;
-	const float cameraSpeed = 50.0f; // adjust accordingly
-    if (glfwGetKey(window, GLFW_KEY_W) && (action == GLFW_PRESS || action == GLFW_REPEAT))
-        cameraPos += cameraSpeed * cameraUp * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_S) && (action == GLFW_PRESS || action == GLFW_REPEAT))
-        cameraPos -= cameraSpeed * cameraUp * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_A) && (action == GLFW_PRESS || action == GLFW_REPEAT))
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * deltaTime * cameraSpeed;
-    if (glfwGetKey(window, GLFW_KEY_D) && (action == GLFW_PRESS || action == GLFW_REPEAT))
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * deltaTime * cameraSpeed;
-    if (glfwGetKey(window, GLFW_KEY_E) && (action == GLFW_PRESS || action == GLFW_REPEAT))
-    	cameraPos += cameraSpeed * cameraFront * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_Q) && (action == GLFW_PRESS || action == GLFW_REPEAT))
-    	cameraPos -= cameraSpeed * cameraFront * deltaTime;
+	if(!enteringText){
+		if (glfwGetKey(window, GLFW_KEY_T) && action == GLFW_PRESS){
+			std::cerr << toPrint << '\n';
+			std::cout << glGetError() << std::endl;
+		}
+		const float cameraSpeed = 50.0f; // adjust accordingly
+	    if (glfwGetKey(window, GLFW_KEY_W) && (action == GLFW_PRESS || action == GLFW_REPEAT))
+	        cameraPos += cameraSpeed * cameraUp * deltaTime;
+	    if (glfwGetKey(window, GLFW_KEY_S) && (action == GLFW_PRESS || action == GLFW_REPEAT))
+	        cameraPos -= cameraSpeed * cameraUp * deltaTime;
+	    if (glfwGetKey(window, GLFW_KEY_A) && (action == GLFW_PRESS || action == GLFW_REPEAT))
+	        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * deltaTime * cameraSpeed;
+	    if (glfwGetKey(window, GLFW_KEY_D) && (action == GLFW_PRESS || action == GLFW_REPEAT))
+	        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * deltaTime * cameraSpeed;
+	    if (glfwGetKey(window, GLFW_KEY_E) && (action == GLFW_PRESS || action == GLFW_REPEAT))
+	    	cameraPos += cameraSpeed * cameraFront * deltaTime;
+	    if (glfwGetKey(window, GLFW_KEY_Q) && (action == GLFW_PRESS || action == GLFW_REPEAT))
+	    	cameraPos -= cameraSpeed * cameraFront * deltaTime;
+	}else{
+		if(glfwGetKey(window, GLFW_KEY_BACKSPACE) && action == GLFW_PRESS)
+			toPrint = toPrint.substr(0, toPrint.length() - 1);
+	}
+}
+
+void charCallback(GLFWwindow*window, unsigned int codepoint){
+	if(enteringText){
+		toPrint.append(1, static_cast<char>(codepoint));
+	}
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods){
@@ -794,7 +879,12 @@ void verifyCommandLineInput(int argc, char *argv[]){
 
 void registerMouseClick(bool leftClick){
 	if(leftClick){
-		if(mouse_position.x >= 700 && mouse_position.y <= 100){
+		enteringText = false;
+		if(mouse_position.x <= 350 && mouse_position.y >= 550){
+			enteringText=true;
+		}else if(mouse_position.x > 350 && mouse_position.x <= 400 && mouse_position.y >= 550){
+			isolateTheseEdges();
+		}else if(mouse_position.x >= 700 && mouse_position.y <= 100){
 			if(mouse_position.x >= WIDTH - 180/2 && mouse_position.x <= WIDTH - 145/2){
 				if(mouse_position.y <= 55/2 && mouse_position.y >= 20/2)
 					displayUnalignedEdgesGraphOne = !displayUnalignedEdgesGraphOne;
@@ -847,22 +937,11 @@ void registerMouseClick(bool leftClick){
 	}else{
 		int vertex = findSelectedVertex();
 		if(didSelectVertices){
-			if(selectedVertices.count(vertex) != 1){
-				selectedVertices.clear();
-				selectedVertexEdgesAligned.clear();
-				selectedVertexEdgeUnalignedOne.clear();
-				selectedVertexEdgeUnalignedTwo.clear();
-				addSelectedVertex(vertex);
-			}else{
-				std::set<int> temp{vertex};
-				selectedVertices.erase(vertex);
-				selectedVertices.swap(temp);
-				for(auto it = temp.begin(); it != temp.end(); ++it){
-					deleteRemovedEdges(*it, selectedVertexEdgesAligned);
-					deleteRemovedEdges(*it, selectedVertexEdgeUnalignedOne);
-					deleteRemovedEdges(*it, selectedVertexEdgeUnalignedTwo);
-				}
-			}
+			selectedVertices.clear();
+			selectedVertexEdgesAligned.clear();
+			selectedVertexEdgeUnalignedOne.clear();
+			selectedVertexEdgeUnalignedTwo.clear();
+			addSelectedVertex(vertex);
 		}else{
 			didSelectVertices = true;
 			addSelectedVertex(vertex);
@@ -920,7 +999,7 @@ void setGUIData(std::vector<unsigned int> input, float topOffset, float bottomOf
 	glEnableVertexAttribArray(2);
 }
 
-std::vector<unsigned int> createGuiBox(float xOffsetLeft, float xOffsetRight, float yOffsetTop, float yOffsetBottom){
+std::vector<unsigned int> createGuiBox(float xOffsetLeft, float xOffsetRight, float yOffsetTop, float yOffsetBottom, glm::vec3 color){
 	/*
 	the x offset and y offset is from the offset from top right corner
 	*/
@@ -928,18 +1007,18 @@ std::vector<unsigned int> createGuiBox(float xOffsetLeft, float xOffsetRight, fl
 	unsigned VAO, VBO;
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
-	setGUIBoxData({VAO, VBO}, xOffsetLeft, xOffsetRight, yOffsetTop, yOffsetBottom);
+	setGUIBoxData({VAO, VBO}, xOffsetLeft, xOffsetRight, yOffsetTop, yOffsetBottom, color);
 	return {VAO, VBO};
 }
 
-void setGUIBoxData(std::vector<unsigned int> input, float xOffsetLeft, float xOffsetRight, float yOffsetTop, float yOffsetBottom){
+void setGUIBoxData(std::vector<unsigned int> input, float xOffsetLeft, float xOffsetRight, float yOffsetTop, float yOffsetBottom, glm::vec3 color){
 	std::vector<float> data{
-		1.0f - xOffsetLeft/WIDTH, 1.0f - yOffsetTop/HEIGHT, 0.2f, 0.6f, 1.0f,
-		1.0f - xOffsetLeft/WIDTH, 1.0f - yOffsetBottom/HEIGHT,  0.2f, 0.6f, 1.0f,
-		1.0f - xOffsetRight/WIDTH, 1.0f - yOffsetTop/HEIGHT, 0.2f, 0.6f, 1.0f,
-		1.0f - xOffsetRight/WIDTH, 1.0f - yOffsetTop/HEIGHT, 0.2f, 0.6f, 1.0f,
-		1.0f - xOffsetRight/WIDTH, 1.0f - yOffsetBottom/HEIGHT,  0.2f, 0.6f, 1.0f,
-		1.0f - xOffsetLeft/WIDTH, 1.0f - yOffsetBottom/HEIGHT,  0.2f, 0.6f, 1.0f
+		1.0f - xOffsetLeft/WIDTH, 1.0f - yOffsetTop/HEIGHT, color.x, color.y, color.z,
+		1.0f - xOffsetLeft/WIDTH, 1.0f - yOffsetBottom/HEIGHT,  color.x, color.y, color.z,
+		1.0f - xOffsetRight/WIDTH, 1.0f - yOffsetTop/HEIGHT, color.x, color.y, color.z,
+		1.0f - xOffsetRight/WIDTH, 1.0f - yOffsetTop/HEIGHT, color.x, color.y, color.z,
+		1.0f - xOffsetRight/WIDTH, 1.0f - yOffsetBottom/HEIGHT,  color.x, color.y, color.z,
+		1.0f - xOffsetLeft/WIDTH, 1.0f - yOffsetBottom/HEIGHT,  color.x, color.y, color.z
 	};
 	unsigned int VAO = input[0];
 	unsigned int VBO = input[1];
@@ -1027,6 +1106,7 @@ void setSelectedVertexVAOData(std::vector<unsigned int> &arr, std::set<std::pair
 }
 
 void addSelectedVertex(int vertex){
+	//vertex in terms of g
 	selectedVertices.insert(vertex);
 	for(int i{}; i < alignedEdgeList[vertex].size(); ++i){
 		if(selectedVertexEdgesAligned.count({alignedEdgeList[vertex][i], vertex}) != 1){
@@ -1055,4 +1135,229 @@ void addSelectedVertex(int vertex){
 			}
 		}
 	}
+}
+
+void loadCharacters(){
+	FT_Library ft;
+    if(FT_Init_FreeType(&ft)){
+    	std::cout << "ERROR Could not init FreeType Library\n"; 
+    }
+
+    FT_Face face;
+    if(FT_New_Face(ft, "fonts/arial.ttf", 0, &face)){
+    	std::cout << "ERROR FreeType: Failed to load font\n";
+    }
+    FT_Set_Pixel_Sizes(face, 0, 48);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // disable byte-alignment restriction
+	for (unsigned char c = 0; c < 128; c++)
+	{
+	    // load character glyph 
+	    if (FT_Load_Char(face, c, FT_LOAD_RENDER))
+	    {
+	        std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
+	        continue;
+	    }
+	    // generate texture
+	    unsigned int texture;
+	    glGenTextures(1, &texture);
+	    glBindTexture(GL_TEXTURE_2D, texture);
+	    glTexImage2D(
+	        GL_TEXTURE_2D,
+	        0,
+	        GL_RED,
+	        face->glyph->bitmap.width,
+	        face->glyph->bitmap.rows,
+	        0,
+	        GL_RED,
+	        GL_UNSIGNED_BYTE,
+	        face->glyph->bitmap.buffer
+	    );
+	    // set texture options
+	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	    // now store character for later use
+	    Character character = {
+	        texture, 
+	        glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
+	        glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
+	        static_cast<unsigned int>(face->glyph->advance.x)
+	    };
+	    Characters.insert(std::pair<char, Character>(c, character));
+	}
+	FT_Done_Face(face);
+	FT_Done_FreeType(ft);
+}
+
+void RenderText(Shader &shader, std::string text, float x, float y, float scale, glm::vec3 color, unsigned int VAO, unsigned int VBO){
+	// activate corresponding render state	
+    shader.use();
+    glUniform3f(glGetUniformLocation(shader.ID, "textColor"), color.x, color.y, color.z);
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(VAO);
+
+    x /= WIDTH;
+    y /= HEIGHT;
+    // iterate through all characters
+    std::string::const_iterator c;
+    for (c = text.begin(); c != text.end(); c++) 
+    {
+    	if(x >= 0)
+    		break;
+        Character ch = Characters[*c];
+
+        float xpos = x + (ch.Bearing.x * scale)/WIDTH;
+        float ypos = y - ((ch.Size.y - ch.Bearing.y) * scale)/HEIGHT;
+
+        float w = (ch.Size.x * scale)/WIDTH;
+        float h = (ch.Size.y * scale)/HEIGHT;
+        // update VBO for each character
+        float vertices[6][4] = {
+            { xpos,     ypos + h,   0.0f, 0.0f },            
+            { xpos,     ypos,       0.0f, 1.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+
+            { xpos,     ypos + h,   0.0f, 0.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+            { xpos + w, ypos + h,   1.0f, 0.0f }           
+        };
+        // render glyph texture over quad
+        glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+        // update content of VBO memory
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); // be sure to use glBufferSubData and not glBufferData
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        // render quad
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+        x += ((ch.Advance >> 6) * scale)/WIDTH; // bitshift by 6 to get value in pixels (2^6 = 64 (divide amount of 1/64th pixels by 64 to get amount of pixels))
+    }
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+std::vector<unsigned int> createTextVAO(){
+	unsigned int VAO, VBO;
+	glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+    return {VAO, VBO};
+}
+
+void isolateTheseEdges(){
+	//first line is "g" or "g2" for which names should be used
+	//second line is "num" or "name" for if you are specifying by name or num
+	//rest of file are a list of vertices
+	try{
+		std::ifstream fstream(toPrint.c_str());
+		std::string line;
+		std::getline(fstream, line);
+		if(line.compare("g") == 0){
+			std::getline(fstream, line);
+			if(line.compare("num") == 0){
+				selectedVertices.clear();
+				selectedVertexEdgesAligned.clear();
+				selectedVertexEdgeUnalignedOne.clear();
+				selectedVertexEdgeUnalignedTwo.clear();
+				didSelectVertices = true;
+				while(std::getline(fstream, line)){
+					int vertex = std::stoi(line);
+					selectedVertices.insert(vertex);
+				}
+			}else if(line.compare("name") == 0){
+				selectedVertices.clear();
+				selectedVertexEdgesAligned.clear();
+				selectedVertexEdgeUnalignedOne.clear();
+				selectedVertexEdgeUnalignedTwo.clear();
+				didSelectVertices = true;
+				while(std::getline(fstream, line)){
+					int vertex = name_to_num[line];
+					selectedVertices.insert(vertex);
+				}
+			}else{
+				std::cout << "Bad format! Second line\n";
+				fstream.close();
+			}
+		}else if(line.compare("g2") == 0){
+			std::getline(fstream, line);
+			if(line.compare("num") == 0){
+				selectedVertices.clear();
+				selectedVertexEdgesAligned.clear();
+				selectedVertexEdgeUnalignedOne.clear();
+				selectedVertexEdgeUnalignedTwo.clear();
+				didSelectVertices = true;
+				while(std::getline(fstream, line)){
+					int vertex = int_map_two_to_one[std::stoi(line)];
+					selectedVertices.insert(vertex);
+				}
+			}else if(line.compare("name") == 0){
+				selectedVertices.clear();
+				selectedVertexEdgesAligned.clear();
+				selectedVertexEdgeUnalignedOne.clear();
+				selectedVertexEdgeUnalignedTwo.clear();
+				didSelectVertices = true;
+				while(std::getline(fstream, line)){
+					int vertex = int_map_two_to_one[name_to_num_two[line]];
+					selectedVertices.insert(vertex);
+				}
+			}else{
+				std::cout << "Bad format! Second line\n";
+				fstream.close();
+			}
+		}else{
+			std::cout << "Bad format! First line\n";
+			fstream.close();
+		}
+	}catch(...){
+		std::cerr << "Could not open " << toPrint << '\n';
+	}
+	//vertex in terms of g
+	for(auto it = selectedVertices.begin(); it != selectedVertices.end(); ++it){
+		for(int i{}; i < alignedEdgeList[*it].size(); ++i){
+			if(selectedVertices.count(alignedEdgeList[*it][i]) == 1){
+				if(selectedVertexEdgesAligned.count({alignedEdgeList[*it][i], *it}) != 1){
+					selectedVertexEdgesAligned.insert({*it, alignedEdgeList[*it][i]});
+				}
+			}
+		}
+		auto ei = boost::edges(g);
+		for(auto eit = ei.first; eit != ei.second; ++eit){
+			int a, b;
+			a = boost::source(*eit, g);
+			b = boost::target(*eit, g);
+			if(a == *it){
+				if(selectedVertices.count(b) == 1){
+					if(selectedVertexEdgeUnalignedOne.count({b, *it}) != 1){
+						selectedVertexEdgeUnalignedOne.insert({*it, b});
+					}
+				}
+			}else if(b == *it){
+				if(selectedVertices.count(a) == 1){
+					if(selectedVertexEdgeUnalignedOne.count({a, *it}) != 1){
+						selectedVertexEdgeUnalignedOne.insert({*it, a});
+					}
+				}
+			}
+		}
+		if(int_map_one_to_two.count(*it) != 0){
+			for(int i{}; i < graphTwoEdges[int_map_one_to_two[*it]].size(); ++i){
+				if(selectedVertices.count(int_map_two_to_one[graphTwoEdges[int_map_one_to_two[*it]][i]]) == 1){
+					if(selectedVertexEdgeUnalignedTwo.count({int_map_two_to_one[graphTwoEdges[int_map_one_to_two[*it]][i]], *it}) != 1){
+						selectedVertexEdgeUnalignedTwo.insert({*it, int_map_two_to_one[graphTwoEdges[int_map_one_to_two[*it]][i]]});
+					}
+				}
+			}
+		}
+	}
+	setSelectedVertexVAOData(selectedVertexEdgesAlignedVAO, selectedVertexEdgesAligned, glm::vec2(EdgeColorAligned.first, EdgeColorAligned.second));
+	setSelectedVertexVAOData(selectedVertexEdgeUnalignedOneVAO, selectedVertexEdgeUnalignedOne, glm::vec2(EdgeOneColorUnaligned.first, EdgeOneColorUnaligned.second));
+	setSelectedVertexVAOData(selectedVertexEdgeUnalignedTwoVAO, selectedVertexEdgeUnalignedTwo, glm::vec2(EdgeTwoColorUnaligned.first, EdgeTwoColorUnaligned.second));
 }
