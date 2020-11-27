@@ -27,7 +27,7 @@ vertexes when selecting are in terms of the boost graph numbering
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 float positionDivider = 200.0f;
-int iterations = 100;
+int ITERAIONS = 100;
 int WIDTH = 800;
 int HEIGHT = 600;
 glm::vec2 mouse_position(0.0, 0.0);
@@ -69,10 +69,12 @@ std::vector<unsigned int> box3;
 PositionMap position;
 UndirectedGraph g;
 std::vector<std::vector<int>> graphTwoEdges;
+std::map<int, bool> alignedNodes;
 std::vector<std::vector<int>> alignedEdgeList;
 std::map<int, int> int_map_one_to_two;
 std::map<int, int> int_map_two_to_one;
 bool didSelectVertices = false;
+bool induced = false;
 std::set<int> selectedVertices;
 std::set<std::pair<int, int>> selectedVertexEdgesAligned;
 std::set<std::pair<int, int>> selectedVertexEdgeUnalignedOne;
@@ -80,6 +82,7 @@ std::set<std::pair<int, int>> selectedVertexEdgeUnalignedTwo;
 std::vector<unsigned int> selectedVertexEdgesAlignedVAO;
 std::vector<unsigned int> selectedVertexEdgeUnalignedOneVAO;
 std::vector<unsigned int> selectedVertexEdgeUnalignedTwoVAO;
+std::vector<unsigned int> selectedVertexPositionVAO;
 
 std::string graphOne;
 std::string graphTwo;
@@ -163,7 +166,6 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 
-  	std::map<int, bool> alignedNodes;
     readAlignedNodes(alignedNodes, name_to_num, name_to_num_two);
 
     std::vector<float> unalignedVerticesList;
@@ -236,37 +238,18 @@ int main(int argc, char *argv[]){
 	}
 	stbi_image_free(data);
 
-	unsigned int texture3;
-	glGenTextures(1, &texture3);
-	glBindTexture(GL_TEXTURE_2D, texture3);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);	
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	data = stbi_load("textures/apply.png", &guiw, &guih, &nrChannels, 0);
-	if (data)
-	{
-	    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, guiw, guih, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-	    glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-	    std::cout << "Could not find apply.png texture" << std::endl;
-	    exit(1);
-	}
-	stbi_image_free(data);
-
 	guiData = createGUIVAO(0.0f, 200.0f, 200.0f, 0.0f);
 	clearSelectionGuiData = createGUIVAO(210.0f, 300.0f, 200.0f, 0.0f);
 	applyButtonData = createGUIVAO(1100.0f, 1200.0f, 900.0f, 800.0f);
 	box1 = createGuiBox(175, 150, 25, 50, glm::vec3(0.2f, 0.6f, 1.0f));
 	box2 = createGuiBox(175, 150, 88, 113, glm::vec3(0.2f, 0.6f, 1.0f));
 	box3 = createGuiBox(175, 150, 150, 175, glm::vec3(0.2f, 0.6f, 1.0f));
-	box4 = createGuiBox(1600, 800, 1100, 1200, glm::vec3(0.83f, 0.83f, 0.83f));
+	box4 = createGuiBox(2*WIDTH, WIDTH, 2*HEIGHT-50, 2*HEIGHT, glm::vec3(0.83f, 0.83f, 0.83f));
 
 	selectedVertexEdgesAlignedVAO = createSelectedVertexVAO();
 	selectedVertexEdgeUnalignedOneVAO = createSelectedVertexVAO();
 	selectedVertexEdgeUnalignedTwoVAO = createSelectedVertexVAO();
+	selectedVertexPositionVAO = createSelectedVertexVAO();
 
     projection = glm::perspective(glm::radians(45.0f), (float)(800.0/600.0), 0.1f, 100.0f);
 
@@ -293,13 +276,18 @@ int main(int argc, char *argv[]){
     	
     	nodeShaderProgram.use();
     	nodeShaderProgram.setMat4("view", view);
-    	if(displayUnalignedNodes){
-			glBindVertexArray(unalignedVerticesVAO);
-			glDrawArrays(GL_POINTS, 0, unalignedVerticesList.size()/2);
-		}
-		if(displayAlignedNodes){
-			glBindVertexArray(alignedVerticesVAO);
-			glDrawArrays(GL_POINTS, 0, alignedVerticesList.size()/2);
+    	if(!induced){
+    		if(displayUnalignedNodes){
+				glBindVertexArray(unalignedVerticesVAO);
+				glDrawArrays(GL_POINTS, 0, unalignedVerticesList.size()/2);
+			}
+			if(displayAlignedNodes){
+				glBindVertexArray(alignedVerticesVAO);
+				glDrawArrays(GL_POINTS, 0, alignedVerticesList.size()/2);
+			}
+		}else{
+			glBindVertexArray(selectedVertexPositionVAO[0]);
+			glDrawArrays(GL_POINTS, 0, selectedVertices.size());
 		}
 
     	edgeShaderProgram.use();
@@ -359,13 +347,8 @@ int main(int argc, char *argv[]){
     	glBindVertexArray(box4[0]);
     	glDrawArrays(GL_TRIANGLES, 0, 6);
 
-    	staticTextureProgram.use();
-    	glBindTexture(GL_TEXTURE_2D, texture3);
-    	glBindVertexArray(applyButtonData[0]);
-    	glDrawArrays(GL_TRIANGLES, 0, 6);
-
     	textProgram.use();
-    	RenderText(textProgram, toPrint,-WIDTH + 10, -HEIGHT+ 30, 1.0f, glm::vec3(0.0, 0.0, 0.0), textVAO[0], textVAO[1]);
+    	RenderText(textProgram, toPrint,-WIDTH + 10, -HEIGHT+ 5, 0.7f, glm::vec3(0.0, 0.0, 0.0), textVAO[0], textVAO[1]);
 
     	glfwSwapBuffers(window);
 	}
@@ -381,7 +364,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height){
 	setGUIBoxData(box1,175, 150, 25, 50, glm::vec3(0.2f, 0.6f, 1.0f));
 	setGUIBoxData(box2,175, 150, 88, 113, glm::vec3(0.2f, 0.6f, 1.0f));
 	setGUIBoxData(box3,175, 150, 150, 175, glm::vec3(0.2f, 0.6f, 1.0f));
-	setGUIBoxData(box4,2*WIDTH, WIDTH, 2*HEIGHT - 100, 2*HEIGHT, glm::vec3(0.83f, 0.83f, 0.83f));
+	setGUIBoxData(box4,2*WIDTH, WIDTH, 2*HEIGHT-50, 2*HEIGHT, glm::vec3(0.83f, 0.83f, 0.83f));
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos){
@@ -414,6 +397,8 @@ void processInput(GLFWwindow* window, int key, int scancode, int action, int mod
 	}else{
 		if(glfwGetKey(window, GLFW_KEY_BACKSPACE) && action == GLFW_PRESS)
 			toPrint = toPrint.substr(0, toPrint.length() - 1);
+		if(glfwGetKey(window, GLFW_KEY_ENTER) && action == GLFW_PRESS)
+			parseTerminalInput();
 	}
 }
 
@@ -547,7 +532,7 @@ void fruchtermanReingold(UndirectedGraph &g,
 	topology_type topo(gen, topologyBounds.x, topologyBounds.y, topologyBounds.z, topologyBounds.w);
 	boost::random_graph_layout(g, position, topo);
 	fruchterman_reingold_force_directed_layout(
-		g, position, topo, cooling(progress_cooling(iterations)));
+		g, position, topo, cooling(progress_cooling(ITERAIONS)));
 	boost::graph_traits< UndirectedGraph >::vertex_iterator vi, vi_end;
     for (boost::tie(vi, vi_end) = vertices(g); vi != vi_end; ++vi)
     {
@@ -814,7 +799,7 @@ void verifyCommandLineInput(int argc, char *argv[]){
 					printHelp();
 					exit(1);
 				}
-				iterations = std::stoi(argv[++i]);
+				ITERAIONS = std::stoi(argv[++i]);
 			}
 			else if(strcmp(argv[i], "-va") == 0){
 				if(i+2 == argc){
@@ -880,11 +865,9 @@ void verifyCommandLineInput(int argc, char *argv[]){
 void registerMouseClick(bool leftClick){
 	if(leftClick){
 		enteringText = false;
-		if(mouse_position.x <= 350 && mouse_position.y >= 550){
+		if(mouse_position.x <= WIDTH/2 && mouse_position.y >= HEIGHT - 25){
 			enteringText=true;
-		}else if(mouse_position.x > 350 && mouse_position.x <= 400 && mouse_position.y >= 550){
-			isolateTheseEdges();
-		}else if(mouse_position.x >= 700 && mouse_position.y <= 100){
+		}else if(mouse_position.x >= WIDTH - 100 && mouse_position.y <= 100){
 			if(mouse_position.x >= WIDTH - 180/2 && mouse_position.x <= WIDTH - 145/2){
 				if(mouse_position.y <= 55/2 && mouse_position.y >= 20/2)
 					displayUnalignedEdgesGraphOne = !displayUnalignedEdgesGraphOne;
@@ -893,12 +876,8 @@ void registerMouseClick(bool leftClick){
 				else if(mouse_position.y <= 180/2 && mouse_position.y >= 145/2)
 					displayAlignedEdges = !displayAlignedEdges;
 			}
-		}else if(didSelectVertices && mouse_position.x >= 700 && mouse_position.y <= 150){
-			didSelectVertices = false;
-			selectedVertices.clear();
-			selectedVertexEdgesAligned.clear();
-			selectedVertexEdgeUnalignedOne.clear();
-			selectedVertexEdgeUnalignedTwo.clear();
+		}else if(didSelectVertices && mouse_position.x >= WIDTH - 100 && mouse_position.y <= 150){
+			clearSelection();
 		}else{
 			int vertex = findSelectedVertex();
 			if(vertex == -1)
@@ -917,7 +896,11 @@ void registerMouseClick(bool leftClick){
 						deleteRemovedEdges(vertex, selectedVertexEdgeUnalignedTwo);
 					}
 				}else{
-					addSelectedVertex(vertex);
+					if(induced){
+						addSelectedInducedVertex(vertex);
+					}else{
+						addSelectedVertex(vertex);
+					}
 				}
 			}else{
 				//only add edges that are {selected vertex, other vertex}
@@ -925,13 +908,15 @@ void registerMouseClick(bool leftClick){
 				//inverse is in there to not duplicate edges and need to check
 				//this when deleting edges too
 				didSelectVertices = true;
-				addSelectedVertex(vertex);
+				if(induced){
+					addSelectedInducedVertex(vertex);
+				}else{
+					addSelectedVertex(vertex);
+				}
 			}
 			if(didSelectVertices){
 				//create the VAO stuff here
-				setSelectedVertexVAOData(selectedVertexEdgesAlignedVAO, selectedVertexEdgesAligned, glm::vec2(EdgeColorAligned.first, EdgeColorAligned.second));
-				setSelectedVertexVAOData(selectedVertexEdgeUnalignedOneVAO, selectedVertexEdgeUnalignedOne, glm::vec2(EdgeOneColorUnaligned.first, EdgeOneColorUnaligned.second));
-				setSelectedVertexVAOData(selectedVertexEdgeUnalignedTwoVAO, selectedVertexEdgeUnalignedTwo, glm::vec2(EdgeTwoColorUnaligned.first, EdgeTwoColorUnaligned.second));
+				setSelectionData();
 			}
 		}
 	}else{
@@ -941,14 +926,20 @@ void registerMouseClick(bool leftClick){
 			selectedVertexEdgesAligned.clear();
 			selectedVertexEdgeUnalignedOne.clear();
 			selectedVertexEdgeUnalignedTwo.clear();
-			addSelectedVertex(vertex);
+			if(induced){
+				addSelectedInducedVertex(vertex);
+			}else{
+				addSelectedVertex(vertex);
+			}
 		}else{
 			didSelectVertices = true;
-			addSelectedVertex(vertex);
+			if(induced){
+				addSelectedInducedVertex(vertex);
+			}else{
+				addSelectedVertex(vertex);
+			}
 		}
-		setSelectedVertexVAOData(selectedVertexEdgesAlignedVAO, selectedVertexEdgesAligned, glm::vec2(EdgeColorAligned.first, EdgeColorAligned.second));
-		setSelectedVertexVAOData(selectedVertexEdgeUnalignedOneVAO, selectedVertexEdgeUnalignedOne, glm::vec2(EdgeOneColorUnaligned.first, EdgeOneColorUnaligned.second));
-		setSelectedVertexVAOData(selectedVertexEdgeUnalignedTwoVAO, selectedVertexEdgeUnalignedTwo, glm::vec2(EdgeTwoColorUnaligned.first, EdgeTwoColorUnaligned.second));
+		setSelectionData();
 	}
 }
 
@@ -1252,12 +1243,12 @@ std::vector<unsigned int> createTextVAO(){
     return {VAO, VBO};
 }
 
-void isolateTheseEdges(){
+void isolateEdgesFromFile(std::string nodeFile){
 	//first line is "g" or "g2" for which names should be used
 	//second line is "num" or "name" for if you are specifying by name or num
 	//rest of file are a list of vertices
 	try{
-		std::ifstream fstream(toPrint.c_str());
+		std::ifstream fstream(nodeFile.c_str());
 		std::string line;
 		std::getline(fstream, line);
 		if(line.compare("g") == 0){
@@ -1321,43 +1312,152 @@ void isolateTheseEdges(){
 	}
 	//vertex in terms of g
 	for(auto it = selectedVertices.begin(); it != selectedVertices.end(); ++it){
-		for(int i{}; i < alignedEdgeList[*it].size(); ++i){
-			if(selectedVertices.count(alignedEdgeList[*it][i]) == 1){
-				if(selectedVertexEdgesAligned.count({alignedEdgeList[*it][i], *it}) != 1){
-					selectedVertexEdgesAligned.insert({*it, alignedEdgeList[*it][i]});
-				}
+		if(induced){
+			addSelectedInducedVertex(*it);
+		}else{
+			addSelectedVertex(*it);
+		}
+	}
+	setSelectionData();
+}
+
+void addSelectedInducedVertex(int vertex){
+	selectedVertices.insert(vertex);
+	for(int i{}; i < alignedEdgeList[vertex].size(); ++i){
+		if(selectedVertices.count(alignedEdgeList[vertex][i]) == 1){
+			if(selectedVertexEdgesAligned.count({alignedEdgeList[vertex][i], vertex}) != 1){
+				selectedVertexEdgesAligned.insert({vertex, alignedEdgeList[vertex][i]});
 			}
 		}
-		auto ei = boost::edges(g);
-		for(auto eit = ei.first; eit != ei.second; ++eit){
-			int a, b;
-			a = boost::source(*eit, g);
-			b = boost::target(*eit, g);
-			if(a == *it){
-				if(selectedVertices.count(b) == 1){
-					if(selectedVertexEdgeUnalignedOne.count({b, *it}) != 1){
-						selectedVertexEdgeUnalignedOne.insert({*it, b});
-					}
-				}
-			}else if(b == *it){
-				if(selectedVertices.count(a) == 1){
-					if(selectedVertexEdgeUnalignedOne.count({a, *it}) != 1){
-						selectedVertexEdgeUnalignedOne.insert({*it, a});
-					}
+	}
+	auto ei = boost::edges(g);
+	for(auto eit = ei.first; eit != ei.second; ++eit){
+		int a, b;
+		a = boost::source(*eit, g);
+		b = boost::target(*eit, g);
+		if(a == vertex){
+			if(selectedVertices.count(b) == 1){
+				if(selectedVertexEdgeUnalignedOne.count({b, vertex}) != 1){
+					selectedVertexEdgeUnalignedOne.insert({vertex, b});
 				}
 			}
-		}
-		if(int_map_one_to_two.count(*it) != 0){
-			for(int i{}; i < graphTwoEdges[int_map_one_to_two[*it]].size(); ++i){
-				if(selectedVertices.count(int_map_two_to_one[graphTwoEdges[int_map_one_to_two[*it]][i]]) == 1){
-					if(selectedVertexEdgeUnalignedTwo.count({int_map_two_to_one[graphTwoEdges[int_map_one_to_two[*it]][i]], *it}) != 1){
-						selectedVertexEdgeUnalignedTwo.insert({*it, int_map_two_to_one[graphTwoEdges[int_map_one_to_two[*it]][i]]});
-					}
+		}else if(b == vertex){
+			if(selectedVertices.count(a) == 1){
+				if(selectedVertexEdgeUnalignedOne.count({a, vertex}) != 1){
+					selectedVertexEdgeUnalignedOne.insert({vertex, a});
 				}
 			}
 		}
 	}
+	if(int_map_one_to_two.count(vertex) != 0){
+		for(int i{}; i < graphTwoEdges[int_map_one_to_two[vertex]].size(); ++i){
+			if(selectedVertices.count(int_map_two_to_one[graphTwoEdges[int_map_one_to_two[vertex]][i]]) == 1){
+				if(selectedVertexEdgeUnalignedTwo.count({int_map_two_to_one[graphTwoEdges[int_map_one_to_two[vertex]][i]], vertex}) != 1){
+					selectedVertexEdgeUnalignedTwo.insert({vertex, int_map_two_to_one[graphTwoEdges[int_map_one_to_two[vertex]][i]]});
+				}
+			}
+		}
+	}
+}
+
+void parseTerminalInput(){
+	if(toPrint.compare("clear") == 0)
+		clearSelection();
+	else if(toPrint.length() > 5 && toPrint.substr(0, 5).compare("file ") == 0){
+		isolateEdgesFromFile(toPrint.substr(5));
+	}else if(toPrint.length() >= 10 && toPrint.substr(0, 8).compare("induced ") == 0){
+		if(toPrint.substr(8).compare("on") == 0 && !induced){
+			induced = true;
+			selectedVertexEdgesAligned.clear();
+			selectedVertexEdgeUnalignedOne.clear();
+			selectedVertexEdgeUnalignedTwo.clear();
+			for(auto it = selectedVertices.begin(); it != selectedVertices.end(); ++it){
+				addSelectedInducedVertex(*it);
+			}
+			setSelectionData();
+		}else if(toPrint.substr(8).compare("off") == 0 && induced){
+			induced = false;
+			selectedVertexEdgesAligned.clear();
+			selectedVertexEdgeUnalignedOne.clear();
+			selectedVertexEdgeUnalignedTwo.clear();
+			for(auto it = selectedVertices.begin(); it != selectedVertices.end(); ++it){
+				addSelectedVertex(*it);
+			}
+			setSelectionData();
+		}
+	}else if(name_to_num.count(toPrint) == 1){
+		didSelectVertices = true;
+		if(selectedVertices.count(name_to_num[toPrint]) == 1){
+			int vertex = name_to_num[toPrint];
+			selectedVertices.erase(vertex);
+			deleteRemovedEdges(vertex, selectedVertexEdgesAligned);
+			deleteRemovedEdges(vertex, selectedVertexEdgeUnalignedOne);
+			deleteRemovedEdges(vertex, selectedVertexEdgeUnalignedTwo);
+		}else if(induced){
+			addSelectedInducedVertex(name_to_num[toPrint]);
+		}else{
+			addSelectedVertex(name_to_num[toPrint]);
+		}
+		setSelectionData();
+	}else if(name_to_num_two.count(toPrint) == 1){
+		didSelectVertices = true;
+		if(selectedVertices.count(int_map_two_to_one[name_to_num_two[toPrint]]) == 1){
+			int vertex = int_map_two_to_one[name_to_num_two[toPrint]];
+			selectedVertices.erase(vertex);
+			deleteRemovedEdges(vertex, selectedVertexEdgesAligned);
+			deleteRemovedEdges(vertex, selectedVertexEdgeUnalignedOne);
+			deleteRemovedEdges(vertex, selectedVertexEdgeUnalignedTwo);
+		}else if(induced){
+			addSelectedInducedVertex(int_map_two_to_one[name_to_num_two[toPrint]]);
+		}else{
+			addSelectedVertex(int_map_two_to_one[name_to_num_two[toPrint]]);
+		}
+		setSelectionData();
+	}
+	toPrint = "";
+}
+
+void clearSelection(){
+	didSelectVertices = false;
+	selectedVertices.clear();
+	selectedVertexEdgesAligned.clear();
+	selectedVertexEdgeUnalignedOne.clear();
+	selectedVertexEdgeUnalignedTwo.clear();
+}
+
+void setSelectionData(){
 	setSelectedVertexVAOData(selectedVertexEdgesAlignedVAO, selectedVertexEdgesAligned, glm::vec2(EdgeColorAligned.first, EdgeColorAligned.second));
 	setSelectedVertexVAOData(selectedVertexEdgeUnalignedOneVAO, selectedVertexEdgeUnalignedOne, glm::vec2(EdgeOneColorUnaligned.first, EdgeOneColorUnaligned.second));
 	setSelectedVertexVAOData(selectedVertexEdgeUnalignedTwoVAO, selectedVertexEdgeUnalignedTwo, glm::vec2(EdgeTwoColorUnaligned.first, EdgeTwoColorUnaligned.second));
+	setSelectedVertexPositionVAOData(selectedVertexPositionVAO);
+}
+
+void setSelectedVertexPositionVAOData(std::vector<unsigned int> &arr){
+	unsigned int VAO = arr[0];
+	unsigned int VBO = arr[1];
+	unsigned int BVBO = arr[2];
+	std::vector<float> colorData;
+	std::vector<float> positionData;
+	for(auto it = selectedVertices.begin(); it != selectedVertices.end(); ++it){
+		if(alignedNodes[*it]){
+			colorData.push_back(vertexColorAligned.first);
+			colorData.push_back(vertexColorAligned.second);
+		}else{
+			colorData.push_back(vertexColorUnaligned.first);
+			colorData.push_back(vertexColorUnaligned.second);
+		}
+		positionData.push_back((float)position[*it][0]/positionDivider);
+		positionData.push_back((float)position[*it][1]/positionDivider);
+	}
+	
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * positionData.size(), &positionData[0], GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)(0));
+	glEnableVertexAttribArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, BVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * colorData.size(), &colorData[0], GL_STATIC_DRAW);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)(0));
+	glEnableVertexAttribArray(1);
 }
