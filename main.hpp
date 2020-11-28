@@ -127,3 +127,4 @@ void parseTerminalInput();
 void clearSelection();
 void setSelectionData();
 void setSelectedVertexPositionVAOData(std::vector<unsigned int> &arr);
+unsigned int loadTexture(std::string path, bool alpha = false);

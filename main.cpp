@@ -3,10 +3,6 @@ TODO:
 - later, move to java and integrate with cytoscope
 - cytoscape integration
 
-- include way to induce subgraphs on some nodes
-	- would need a text box gui
-	- like screw me
-
 - turn right click to toggle
 
 - use windows and apple standards for selecting
@@ -41,8 +37,7 @@ struct Character{
 };
 std::map<char, Character> Characters;
 std::string toPrint = "";
-std::vector<unsigned int> box4;
-std::vector<unsigned int> applyButtonData;
+std::vector<unsigned int> textInputBox;
 glm::vec2 textPositon;
 bool enteringText = false;
 
@@ -168,15 +163,15 @@ int main(int argc, char *argv[]){
 
     readAlignedNodes(alignedNodes, name_to_num, name_to_num_two);
 
-    std::vector<float> unalignedVerticesList;
-	std::vector<float> alignedVerticesList;
+    std::vector<float> unalignedVerticesPositionData;
+	std::vector<float> alignedVerticesPositionData;
 	PositionVec position_vec(num_vertices(g));
 	position = PositionMap(position_vec.begin(), get(boost::vertex_index, g));
-	fruchtermanReingold(g, position, unalignedVerticesList, alignedVerticesList, alignedNodes);
+	fruchtermanReingold(g, position, unalignedVerticesPositionData, alignedVerticesPositionData, alignedNodes);
 
-    std::vector<float> unalignedVertexColor;
-    std::vector<float> alignedVertexColor;
-    setVertexColors(unalignedVerticesList, alignedVerticesList, unalignedVertexColor, alignedVertexColor);
+    std::vector<float> unalignedVertexColorData;
+    std::vector<float> alignedVertexColorData;
+    setVertexColors(unalignedVerticesPositionData, alignedVerticesPositionData, unalignedVertexColorData, alignedVertexColorData);
 
     std::vector<float> alignedEdges;
 	std::vector<float> alignedEdgeColor;
@@ -184,67 +179,29 @@ int main(int argc, char *argv[]){
 
 	std::vector<float> unalignedEdgesGraphOne;
 	std::vector<float> unalignedEdgeColorGraphOne;
-	getUnalignedEdgesInGraph(g, position, unalignedEdgesGraphOne, unalignedEdgeColorGraphOne);
+	getUnalignedEdgesInBoostGraph(g, position, unalignedEdgesGraphOne, unalignedEdgeColorGraphOne);
 
 	std::vector<float> unalignedEdgesGraphTwo;
 	std::vector<float> unalignedEdgeColorGraphTwo;
 	getUnaligendEdgesInEdgeGraph(graphTwoEdges, position, unalignedEdgesGraphTwo, unalignedEdgeColorGraphTwo, name_to_num, num_to_name);
 	
-	unsigned int unalignedVerticesVAO = createVAO(unalignedVerticesList, 2, unalignedVertexColor, 2);
-	unsigned int alignedVerticesVAO = createVAO(alignedVerticesList, 2, alignedVertexColor, 2);
+	//entire graph display data
+	unsigned int unalignedVerticesVAO = createVAO(unalignedVerticesPositionData, 2, unalignedVertexColorData, 2);
+	unsigned int alignedVerticesVAO = createVAO(alignedVerticesPositionData, 2, alignedVertexColorData, 2);
 	unsigned int alignedEdgeVAO = createVAO(alignedEdges, 4, alignedEdgeColor, 2);
 	unsigned int unalignedEdgesGraphOneVAO = createVAO(unalignedEdgesGraphOne, 4, unalignedEdgeColorGraphOne, 2);
 	unsigned int unalignedEdgesGraphTwoVAO = createVAO(unalignedEdgesGraphTwo, 4, unalignedEdgeColorGraphTwo, 2);
 
-	//gui stuff
-	unsigned int texture;
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);	
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	int guiw, guih, nrChannels;
-	unsigned char *data = stbi_load("textures/gui.png", &guiw, &guih, &nrChannels, 0);
-	if (data)
-	{
-	    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, guiw, guih, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-	    glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-	    std::cout << "Could not find gui.png texture" << std::endl;
-	    exit(1);
-	}
-	stbi_image_free(data);
-
-	unsigned int texture2;
-	glGenTextures(1, &texture2);
-	glBindTexture(GL_TEXTURE_2D, texture2);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);	
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	data = stbi_load("textures/clearSelectionButton.png", &guiw, &guih, &nrChannels, 0);
-	if (data)
-	{
-	    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, guiw, guih, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-	    glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-	    std::cout << "Could not find clearSelectionButton.png texture" << std::endl;
-	    exit(1);
-	}
-	stbi_image_free(data);
+	//texture stuff
+	unsigned int texture = loadTexture("textures/gui.png");
+	unsigned int texture2 = loadTexture("textures/clearSelectionButton.png");
 
 	guiData = createGUIVAO(0.0f, 200.0f, 200.0f, 0.0f);
 	clearSelectionGuiData = createGUIVAO(210.0f, 300.0f, 200.0f, 0.0f);
-	applyButtonData = createGUIVAO(1100.0f, 1200.0f, 900.0f, 800.0f);
 	box1 = createGuiBox(175, 150, 25, 50, glm::vec3(0.2f, 0.6f, 1.0f));
 	box2 = createGuiBox(175, 150, 88, 113, glm::vec3(0.2f, 0.6f, 1.0f));
 	box3 = createGuiBox(175, 150, 150, 175, glm::vec3(0.2f, 0.6f, 1.0f));
-	box4 = createGuiBox(2*WIDTH, WIDTH, 2*HEIGHT-50, 2*HEIGHT, glm::vec3(0.83f, 0.83f, 0.83f));
+	textInputBox = createGuiBox(2*WIDTH, WIDTH, 2*HEIGHT-50, 2*HEIGHT, glm::vec3(0.83f, 0.83f, 0.83f));
 
 	selectedVertexEdgesAlignedVAO = createSelectedVertexVAO();
 	selectedVertexEdgeUnalignedOneVAO = createSelectedVertexVAO();
@@ -276,14 +233,14 @@ int main(int argc, char *argv[]){
     	
     	nodeShaderProgram.use();
     	nodeShaderProgram.setMat4("view", view);
-    	if(!induced){
+    	if(!induced && didSelectVertices){
     		if(displayUnalignedNodes){
 				glBindVertexArray(unalignedVerticesVAO);
-				glDrawArrays(GL_POINTS, 0, unalignedVerticesList.size()/2);
+				glDrawArrays(GL_POINTS, 0, unalignedVerticesPositionData.size()/2);
 			}
 			if(displayAlignedNodes){
 				glBindVertexArray(alignedVerticesVAO);
-				glDrawArrays(GL_POINTS, 0, alignedVerticesList.size()/2);
+				glDrawArrays(GL_POINTS, 0, alignedVerticesPositionData.size()/2);
 			}
 		}else{
 			glBindVertexArray(selectedVertexPositionVAO[0]);
@@ -344,7 +301,7 @@ int main(int argc, char *argv[]){
     		glBindVertexArray(box2[0]);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
     	}
-    	glBindVertexArray(box4[0]);
+    	glBindVertexArray(textInputBox[0]);
     	glDrawArrays(GL_TRIANGLES, 0, 6);
 
     	textProgram.use();
@@ -364,7 +321,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height){
 	setGUIBoxData(box1,175, 150, 25, 50, glm::vec3(0.2f, 0.6f, 1.0f));
 	setGUIBoxData(box2,175, 150, 88, 113, glm::vec3(0.2f, 0.6f, 1.0f));
 	setGUIBoxData(box3,175, 150, 150, 175, glm::vec3(0.2f, 0.6f, 1.0f));
-	setGUIBoxData(box4,2*WIDTH, WIDTH, 2*HEIGHT-50, 2*HEIGHT, glm::vec3(0.83f, 0.83f, 0.83f));
+	setGUIBoxData(textInputBox,2*WIDTH, WIDTH, 2*HEIGHT-50, 2*HEIGHT, glm::vec3(0.83f, 0.83f, 0.83f));
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos){
@@ -525,8 +482,8 @@ void readAlignedNodes(std::map<int, bool> &alignedNodes, std::map<std::string, i
 
 void fruchtermanReingold(UndirectedGraph &g, 
 	PositionMap &position, 
-	std::vector<float> &unalignedVerticesList, 
-	std::vector<float> &alignedVerticesList, 
+	std::vector<float> &unalignedVerticesPositionData, 
+	std::vector<float> &alignedVerticesPositionData, 
 	std::map<int, bool> &alignedNodes){
 	boost::minstd_rand gen;
 	topology_type topo(gen, topologyBounds.x, topologyBounds.y, topologyBounds.z, topologyBounds.w);
@@ -537,11 +494,11 @@ void fruchtermanReingold(UndirectedGraph &g,
     for (boost::tie(vi, vi_end) = vertices(g); vi != vi_end; ++vi)
     {
     	if(alignedNodes[*vi]){
-    	    alignedVerticesList.push_back((float)position[*vi][0]/positionDivider);
-    	    alignedVerticesList.push_back((float)position[*vi][1]/positionDivider);
+    	    alignedVerticesPositionData.push_back((float)position[*vi][0]/positionDivider);
+    	    alignedVerticesPositionData.push_back((float)position[*vi][1]/positionDivider);
     	}else{
-    		unalignedVerticesList.push_back((float)position[*vi][0]/positionDivider);
-    		unalignedVerticesList.push_back((float)position[*vi][1]/positionDivider);
+    		unalignedVerticesPositionData.push_back((float)position[*vi][0]/positionDivider);
+    		unalignedVerticesPositionData.push_back((float)position[*vi][1]/positionDivider);
     	}
     }
 }
@@ -668,7 +625,7 @@ void readAlignedEdges(UndirectedGraph &g,
 		exit(1);
 	}
 }
-void getUnalignedEdgesInGraph(UndirectedGraph &g, PositionMap &position, std::vector<float> &unalignedEdgesGraphOne, std::vector<float> &unalignedEdgeColorGraphOne){
+void getUnalignedEdgesInBoostGraph(UndirectedGraph &g, PositionMap &position, std::vector<float> &unalignedEdgesGraphOne, std::vector<float> &unalignedEdgeColorGraphOne){
 	auto ei = boost::edges(g);
 	for(auto eit = ei.first; eit != ei.second; ++eit){
 		int a, b;
@@ -704,14 +661,14 @@ void getUnaligendEdgesInEdgeGraph(std::vector<std::vector<int>> &graphTwoEdges,
 	}
 }
 
-void setVertexColors(std::vector<float> &unalignedVertices, std::vector<float> &alignedVertices, std::vector<float> &unalignedVertexColor, std::vector<float> &alignedVertexColor){
+void setVertexColors(std::vector<float> &unalignedVertices, std::vector<float> &alignedVertices, std::vector<float> &unalignedVertexColorData, std::vector<float> &alignedVertexColorData){
 	for(int i{}; i < unalignedVertices.size()/2; ++i){
-    	unalignedVertexColor.push_back(vertexColorUnaligned.first);
-    	unalignedVertexColor.push_back(vertexColorUnaligned.second);
+    	unalignedVertexColorData.push_back(vertexColorUnaligned.first);
+    	unalignedVertexColorData.push_back(vertexColorUnaligned.second);
     }
     for(int i{}; i < alignedVertices.size()/2; ++i){
-    	alignedVertexColor.push_back(vertexColorAligned.first);
-    	alignedVertexColor.push_back(vertexColorAligned.second);
+    	alignedVertexColorData.push_back(vertexColorAligned.first);
+    	alignedVertexColorData.push_back(vertexColorAligned.second);
     }
 }
 
@@ -1460,4 +1417,41 @@ void setSelectedVertexPositionVAOData(std::vector<unsigned int> &arr){
 	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * colorData.size(), &colorData[0], GL_STATIC_DRAW);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)(0));
 	glEnableVertexAttribArray(1);
+}
+
+unsigned int loadTexture(std::string path, bool alpha){
+	unsigned int texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	int guiw, guih, nrChannels;
+	unsigned char *data = stbi_load(path.c_str(), &guiw, &guih, &nrChannels, 0);
+	if(!alpha){
+		if (data)
+		{
+		    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, guiw, guih, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		    glGenerateMipmap(GL_TEXTURE_2D);
+		}
+		else
+		{
+		    std::cout << "Could not find " << path << " texture" << std::endl;
+		    exit(1);
+		}
+	}else{
+		if (data)
+		{
+		    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, guiw, guih, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		    glGenerateMipmap(GL_TEXTURE_2D);
+		}
+		else
+		{
+		    std::cout << "Could not find " << path << " texture" << std::endl;
+		    exit(1);
+		}
+	}
+	stbi_image_free(data);
+	return texture;
 }
