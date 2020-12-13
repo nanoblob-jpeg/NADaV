@@ -11,7 +11,7 @@ This offers a quick way to see how two networks are aligned which has been made 
 ### Compiling
 If you want to recompile this program for yourself, use the following gcc command or it's equivalent
 ```
-g++ -std=c++17 glad.o main.cpp Shader.cpp image.cpp -o NADV.exe -lglfw3 -I. -IPath/to/boost/library -L./lib -O2
+g++ -std=c++17 glad.o main.cpp Shader.cpp image.cpp -o NADV.exe -lglfw3 -lfreetype -I. -IPath/to/boost/library -I./freetype -L. -O2
 ```
 
 ### Using the Program
@@ -25,8 +25,8 @@ or
 or any permutation thereof.
 There also additional arguments that can be specified:
 * -i int : set's number of iterations for fruchterman reingold algorithm which spreads the points of the graph
-* -a name.align : sets the align file for when it is not named sana.align
-* -e name.ccs-el : sets the ccs-el file if not name sana.ccs-el
+* -a name.align : sets the align file for when it is not named sana.align or is not in same directory as this file
+* -e name.ccs-el : sets the ccs-el file if not name sana.ccs-el or is not in same directory as this file
 * -va float float : sets the color of aligned vertexes with {red, blue} from 0 to 255
 * -vu float float : sets the color of unaligned vertexes with {red, blue} from 0 to 255
 * -eu1 float float : sets the color of unaligned edges in graph g with {red, blue} from 0 to 255
