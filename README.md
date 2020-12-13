@@ -1,7 +1,7 @@
 # Network Alignment Data Visualization (NADV)
 
 This offers a quick way to see how two networks are aligned which has been made specifically to work with SANA (https://github.com/nmamano/SANA/tree/SANA2/src)
-### Requires the boost graph library which can be found: https://www.boost.org/doc/libs/1_74_0/libs/graph/doc/index.html
+#### Requires the boost graph library which can be found: https://www.boost.org/doc/libs/1_74_0/libs/graph/doc/index.html
 #### Uses the freetype library, glad, and glfw
 ### It expects 4 files, two of which have default values:
 * two graphs, g and g2, where the g is bigger than g2, every node in g2 is aligned to a node in g, and either in edge list format or graphWin format.
