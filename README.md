@@ -1,4 +1,4 @@
-# Network Alignment Data Visualization (NADV)
+# Network Alignment Data Visualization (NADaV)
 
 This offers a quick way to see how two networks are aligned which has been made specifically to work with SANA (https://github.com/nmamano/SANA/tree/SANA2/src)
 #### Requires the boost graph library which can be found: https://www.boost.org/doc/libs/1_74_0/libs/graph/doc/index.html
