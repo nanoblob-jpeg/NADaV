@@ -179,7 +179,7 @@ int main(int argc, char *argv[]){
 
 	std::vector<float> unalignedEdgesGraphOne;
 	std::vector<float> unalignedEdgeColorGraphOne;
-	getUnalignedEdgesInBoostGraph(g, position, unalignedEdgesGraphOne, unalignedEdgeColorGraphOne);
+	getUnalignedEdgesInGraph(g, position, unalignedEdgesGraphOne, unalignedEdgeColorGraphOne);
 
 	std::vector<float> unalignedEdgesGraphTwo;
 	std::vector<float> unalignedEdgeColorGraphTwo;
@@ -233,7 +233,7 @@ int main(int argc, char *argv[]){
     	
     	nodeShaderProgram.use();
     	nodeShaderProgram.setMat4("view", view);
-    	if(!induced && didSelectVertices){
+    	if(!induced){
     		if(displayUnalignedNodes){
 				glBindVertexArray(unalignedVerticesVAO);
 				glDrawArrays(GL_POINTS, 0, unalignedVerticesPositionData.size()/2);
@@ -625,7 +625,7 @@ void readAlignedEdges(UndirectedGraph &g,
 		exit(1);
 	}
 }
-void getUnalignedEdgesInBoostGraph(UndirectedGraph &g, PositionMap &position, std::vector<float> &unalignedEdgesGraphOne, std::vector<float> &unalignedEdgeColorGraphOne){
+void getUnalignedEdgesInGraph(UndirectedGraph &g, PositionMap &position, std::vector<float> &unalignedEdgesGraphOne, std::vector<float> &unalignedEdgeColorGraphOne){
 	auto ei = boost::edges(g);
 	for(auto eit = ei.first; eit != ei.second; ++eit){
 		int a, b;
