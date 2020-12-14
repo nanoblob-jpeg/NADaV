@@ -10,7 +10,7 @@ This offers a quick way to see how two networks are aligned which has been made 
 * You can see examples of these files in the example data folder
 
 ### Compiling
-If you want to recompile this program for yourself, use the following gcc command or it's equivalent
+If you want to recompile this program for yourself, use the following gcc command or it's equivalent (this is a 32 bit program)
 ```
 g++ -std=c++17 glad.o main.cpp Shader.cpp image.cpp -o NADV.exe -lglfw3 -lfreetype -I. -IPath/to/boost/library -I./freetype -L. -O2
 ```
