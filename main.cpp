@@ -9,10 +9,6 @@ TODO:
 	- clock only select
 	- control + click = add
 	- shift + click = select everything between
-
--names
-	- vizalign
-	- VisAl
 Details:
 Both graphs created are 0 indexed
 vertexes when selecting are in terms of the boost graph numbering
